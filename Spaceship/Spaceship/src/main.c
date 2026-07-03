@@ -26,6 +26,9 @@
  *  cmake --build build-web
  *  emrun build-web/game.html   (or serve build-web/ with any static server)
  *
+ *  cd build-web
+ *  zip -r ../spaceship-web.zip index.html index.js index.wasm index.data
+ *
  * Project:
  *
  *  Spaceship

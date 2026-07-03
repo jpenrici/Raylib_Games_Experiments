@@ -9,19 +9,17 @@ set(PROGRAM_NAME game)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
 
 option(AUDIO_MUTED "Silence all audio (useful during development/testing)" OFF)
-option(ONLY_SHAPE "Hide images if loaded (useful during development/testing)"
-       OFF)
+option(ONLY_SHAPE "Hide images if loaded (useful during development/testing)" OFF)
 
 if(EMSCRIPTEN)
-  set(CMAKE_C_FLAGS
-      "${CMAKE_C_FLAGS} -s USE_GLFW=3 -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s USE_GLFW=3 -s ALLOW_MEMORY_GROWTH=1")
 endif()
 
 include(FetchContent)
 set(FETCHCONTENT_QUIET FALSE)
+
 set(RAYLIB_VERSION 5.5)
 
 if(EMSCRIPTEN)
@@ -38,12 +36,12 @@ if(NOT raylib_FOUND)
     GIT_SHALLOW TRUE)
 
   # Skip building raylib's own examples/games — we only need the library.
-  set(BUILD_EXAMPLES
-      OFF
-      CACHE BOOL "" FORCE)
-  set(BUILD_GAMES
-      OFF
-      CACHE BOOL "" FORCE)
+  set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
+
+  if(EMSCRIPTEN)
+    set(PLATFORM "Web" CACHE STRING "" FORCE)
+  endif()
 
   FetchContent_MakeAvailable(raylib)
 endif()
@@ -51,6 +49,8 @@ endif()
 set(SOURCES src/main.c)
 
 add_executable(${PROGRAM_NAME} ${SOURCES})
+
+set_target_properties(${PROGRAM_NAME} PROPERTIES C_EXTENSIONS OFF)
 
 if(AUDIO_MUTED)
   target_compile_definitions(${PROGRAM_NAME} PRIVATE AUDIO_MUTED)
@@ -68,15 +68,16 @@ if(EMSCRIPTEN)
 
   target_link_libraries(${PROGRAM_NAME} PRIVATE raylib)
 
-  set_target_properties(${PROGRAM_NAME} PROPERTIES SUFFIX ".html")
+  set_target_properties(${PROGRAM_NAME} PROPERTIES OUTPUT_NAME "index" SUFFIX ".html")
 
   target_link_options(
-    ${PROGRAM_NAME} PRIVATE
+    ${PROGRAM_NAME}
+    PRIVATE
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources@resources"
-    "SHELL:-s ASYNCIFY" "SHELL:-s ALLOW_MEMORY_GROWTH=1" "SHELL:-s USE_GLFW=3")
+    "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+    "SHELL:-s USE_GLFW=3"
+    "SHELL:-s STACK_SIZE=1048576")
 else()
-  # Wayland/EGL/xkbcommon are Linux-desktop-only dependencies of raylib; they
-  # don't exist (and aren't needed) in the web build.
   target_link_libraries(
     ${PROGRAM_NAME}
     PRIVATE raylib
@@ -97,5 +98,4 @@ else()
     COMMENT "Copyng resources...")
 endif()
 
-target_compile_options(${PROGRAM_NAME} PRIVATE -Wall -Wextra -Wpedantic
-                                               -Wconversion)
+target_compile_options(${PROGRAM_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wconversion)
