@@ -2,14 +2,52 @@
  * A simple spaceship game.
  *
  * Controls:
- * WASD or Arrow keys move the spaceship
- * Spacebar shoots
- * N restarts after time runs out
- * ESC exits the game
+ *   WASD or Arrow keys move the spaceship
+ *   Spacebar shoots
+ *   N restarts after time runs out
+ *   ESC exits the game
  *
  * Build-time flags:
  *   -DAUDIO_MUTED  silence all audio (development / CI)
  *   -DONLY_SHAPE   hide image if loaded (development / CI)
+ *
+ * Build and Run:
+ * --------------
+ *
+ * Desktop:
+ *
+ *  cmake -B build/ [--DAUDIO_MUTED=ON] [-DONLY_SHAPE=ON]
+ *  cmake --build build
+ *  ./build/game
+ *
+ * Web - JavaScript/WebAssembly with Emscripten:
+ *
+ *  emcmake cmake -B build-web
+ *  cmake --build build-web
+ *  emrun build-web/game.html   (or serve build-web/ with any static server)
+ *
+ * Project:
+ *
+ *  Spaceship
+ *  ├── CMakeLists*.txt
+ *  ├── resources
+ *  │   ├── audio
+ *  │   │   ├── alert.mp3
+ *  │   │   ├── explosion.mp3
+ *  │   │   ├── music.mp3
+ *  │   │   └── shot.mp3
+ *  │   ├── fonts
+ *  │   │   ├── NotoSans-Black.ttf
+ *  │   │   └── OFL.txt
+ *  │   └── images
+ *  │       ├── background.png
+ *  │       ├── bullet.png
+ *  │       ├── gameOver.png
+ *  │       ├── meteor.png
+ *  │       └── spaceship.png
+ *  └── src
+ *      └── main.c
+ *
  */
 
 #include "raylib.h"
@@ -21,8 +59,17 @@
 #include <string.h>
 
 // ---------------------------------------------------------------------------
+// Emscripten
+// ---------------------------------------------------------------------------
+
+#if defined(PLATFORM_WEB)
+#include <emscripten/emscripten.h>
+#endif
+
+// ---------------------------------------------------------------------------
 // Audio mute
 // ---------------------------------------------------------------------------
+
 #ifdef AUDIO_MUTED
 #define PLAY_SOUND(sfx) ((void)0)
 #define PLAY_MUSIC(mus) ((void)0)
@@ -38,6 +85,7 @@
 // ---------------------------------------------------------------------------
 // Graphics
 // ---------------------------------------------------------------------------
+
 #ifdef ONLY_SHAPE
 #define HIDDEN_IMAGE true
 #else
@@ -243,6 +291,7 @@ static void GamePlay(Game* game);
 static void GameRender(const Game* game);
 static void GameCheckCollisions(Game* game);
 static void GameQuit(Game* game);
+static void UpdateDrawFrame(void);
 
 void PrepareSheet(SpriteSheet* sheet, const char* path, unsigned rows, unsigned cols, unsigned frameW, unsigned frameH);
 void DrawSprite(const SpriteSheet* sheet, unsigned frame, float x, float y);
@@ -267,6 +316,13 @@ static void SpawnDistant(Obstacle* m, int screenW, int screenH);
 static void ResetBullet(Bullet* b);
 
 // ---------------------------------------------------------------------------
+// Global game state
+// ---------------------------------------------------------------------------
+// Needs to live outside main() so the Emscripten main-loop callback
+// (UpdateDrawFrame), which takes no arguments, can reach it too.
+static Game game = { 0 };
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -274,31 +330,55 @@ int main(void)
 {
     // Window
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE);
+
+#if !defined(PLATFORM_WEB)
     SetTargetFPS(TIMER_FPS);
     HideCursor();
+#endif
 
     // Initialize
-    Game game = { 0 };
     GameInit(&game, SCREEN_WIDTH, SCREEN_HEIGHT);
 
+#if defined(PLATFORM_WEB)
+    emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
+#else
     // Game Loop
     while (!WindowShouldClose() && game.state != STATE_QUIT) {
-        // Events
-        GameHandleInput(&game);
-
-        // Update
-        if (game.state == STATE_PLAYING)
-            GameUpdate(&game);
-
-        // Render
-        GameRender(&game);
+        UpdateDrawFrame();
     }
 
     // Exit
     GameQuit(&game);
+#endif // Emscripten
+
     CloseWindow();
 
     return 0;
+}
+
+// ---------------------------------------------------------------------------
+// One tick: events + update + render.
+// Shared between the desktop while(...) loop and the Emscripten callback.
+// ---------------------------------------------------------------------------
+
+static void UpdateDrawFrame(void)
+{
+    // Events
+    GameHandleInput(&game);
+
+    // Update
+    if (game.state == STATE_PLAYING)
+        GameUpdate(&game);
+
+    // Render
+    GameRender(&game);
+
+#if defined(PLATFORM_WEB)
+    if (game.state == STATE_QUIT) {
+        GameQuit(&game);
+        emscripten_cancel_main_loop();
+    }
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -689,7 +769,7 @@ static void GameRender(const Game* game)
 
     // Bottom hint bar
     DrawRectangle(0, SCREEN_HEIGHT - 24, SCREEN_WIDTH, 24, (Color) { 0, 0, 0, 180 });
-    DrawText("Use WASD or arrows to move, Space to shot and P to pause.",
+    DrawText("Use WASD or arrows to move, Space to shot and P to pause and R to restart.",
         10, SCREEN_HEIGHT - 19, 14, LIGHTGRAY);
 
     EndDrawing();

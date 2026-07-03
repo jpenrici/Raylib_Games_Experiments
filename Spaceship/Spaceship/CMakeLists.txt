@@ -15,7 +15,38 @@ option(AUDIO_MUTED "Silence all audio (useful during development/testing)" OFF)
 option(ONLY_SHAPE "Hide images if loaded (useful during development/testing)"
        OFF)
 
-find_package(raylib REQUIRED QUIET)
+if(EMSCRIPTEN)
+  set(CMAKE_C_FLAGS
+      "${CMAKE_C_FLAGS} -s USE_GLFW=3 -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY")
+endif()
+
+include(FetchContent)
+set(FETCHCONTENT_QUIET FALSE)
+set(RAYLIB_VERSION 5.5)
+
+if(EMSCRIPTEN)
+  set(raylib_FOUND FALSE)
+else()
+  find_package(raylib ${RAYLIB_VERSION} QUIET)
+endif()
+
+if(NOT raylib_FOUND)
+  FetchContent_Declare(
+    raylib
+    GIT_REPOSITORY https://github.com/raysan5/raylib.git
+    GIT_TAG ${RAYLIB_VERSION}
+    GIT_SHALLOW TRUE)
+
+  # Skip building raylib's own examples/games — we only need the library.
+  set(BUILD_EXAMPLES
+      OFF
+      CACHE BOOL "" FORCE)
+  set(BUILD_GAMES
+      OFF
+      CACHE BOOL "" FORCE)
+
+  FetchContent_MakeAvailable(raylib)
+endif()
 
 set(SOURCES src/main.c)
 
@@ -31,24 +62,40 @@ if(ONLY_SHAPE)
   message(STATUS "ONLY_SHAPE: images disabled for this build")
 endif()
 
-target_link_libraries(
-  ${PROGRAM_NAME}
-  PRIVATE raylib
-          wayland-client
-          wayland-egl
-          EGL
-          xkbcommon
-          m
-          pthread
-          dl)
+if(EMSCRIPTEN)
+  # Tells our own src/main.c to take the emscripten_set_main_loop() branch.
+  target_compile_definitions(${PROGRAM_NAME} PRIVATE PLATFORM_WEB)
 
-add_custom_command(
-  TARGET ${PROGRAM_NAME}
-  POST_BUILD
-  COMMAND
-    ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources
-    $<TARGET_FILE_DIR:${PROGRAM_NAME}>/resources
-  COMMENT "Copyng resources...")
+  target_link_libraries(${PROGRAM_NAME} PRIVATE raylib)
+
+  set_target_properties(${PROGRAM_NAME} PROPERTIES SUFFIX ".html")
+
+  target_link_options(
+    ${PROGRAM_NAME} PRIVATE
+    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources@resources"
+    "SHELL:-s ASYNCIFY" "SHELL:-s ALLOW_MEMORY_GROWTH=1" "SHELL:-s USE_GLFW=3")
+else()
+  # Wayland/EGL/xkbcommon are Linux-desktop-only dependencies of raylib; they
+  # don't exist (and aren't needed) in the web build.
+  target_link_libraries(
+    ${PROGRAM_NAME}
+    PRIVATE raylib
+            wayland-client
+            wayland-egl
+            EGL
+            xkbcommon
+            m
+            pthread
+            dl)
+
+  add_custom_command(
+    TARGET ${PROGRAM_NAME}
+    POST_BUILD
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources
+      $<TARGET_FILE_DIR:${PROGRAM_NAME}>/resources
+    COMMENT "Copyng resources...")
+endif()
 
 target_compile_options(${PROGRAM_NAME} PRIVATE -Wall -Wextra -Wpedantic
                                                -Wconversion)
