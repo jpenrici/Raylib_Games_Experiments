@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Spaceship</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+
+    #canvas {
+      display: block;
+      margin: 0 auto;
+      background-color: #000;
+      outline: none;
+      /* Scale down to fit smaller embeds without distorting; the canvas'
+         real pixel size is still set by raylib via InitWindow(). */
+      max-width: 100%;
+      height: auto;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ccc;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      background: #000;
+      z-index: 10;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="loading">Carregando...</div>
+  <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+
+  <script type="text/javascript">
+    var loadingElement = document.getElementById('loading');
+
+    var Module = {
+      canvas: (() => {
+        var canvas = document.getElementById('canvas');
+        // Default behavior on WebGL context loss; override before shipping
+        // if you want something less jarring than an alert().
+        canvas.addEventListener('webglcontextlost', (e) => {
+          alert('WebGL context lost. Reload the page.');
+          e.preventDefault();
+        }, false);
+        return canvas;
+      })(),
+      setStatus: (text) => {
+        if (!text) {
+          loadingElement.style.display = 'none';
+        } else {
+          loadingElement.textContent = text;
+        }
+      },
+      totalDependencies: 0,
+      monitorRunDependencies: (left) => {
+        Module.totalDependencies = Math.max(Module.totalDependencies, left);
+        Module.setStatus(
+          left
+            ? 'Loading... (' + (Module.totalDependencies - left) + '/' + Module.totalDependencies + ')'
+            : ''
+        );
+      }
+    };
+
+    window.onerror = () => {
+      Module.setStatus('An error occurred. Check the console (F12) for details.');
+    };
+  </script>
+
+  <!-- Emscripten replaces this placeholder with the actual <script> tag(s)
+       that load the generated .js glue code. It must stay as-is. -->
+  {{{ SCRIPT }}}
+</body>
+
+</html>

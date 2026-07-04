@@ -22,6 +22,18 @@ set(FETCHCONTENT_QUIET FALSE)
 
 set(RAYLIB_VERSION 5.5)
 
+set(RAYLIB_SOURCE_DIR "" CACHE PATH
+    "Path to an existing raylib source checkout, reused instead of a fresh git clone")
+
+if(RAYLIB_SOURCE_DIR)
+  if(NOT EXISTS "${RAYLIB_SOURCE_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR "RAYLIB_SOURCE_DIR (${RAYLIB_SOURCE_DIR}) doesn't "
+                         "look like a raylib checkout: no CMakeLists.txt found there.")
+  endif()
+  set(FETCHCONTENT_SOURCE_DIR_RAYLIB "${RAYLIB_SOURCE_DIR}")
+  message(STATUS "Using local raylib checkout: ${RAYLIB_SOURCE_DIR} (git clone skipped)")
+endif()
+
 if(EMSCRIPTEN)
   set(raylib_FOUND FALSE)
 else()
@@ -73,6 +85,7 @@ if(EMSCRIPTEN)
   target_link_options(
     ${PROGRAM_NAME}
     PRIVATE
+    "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/shell.html"
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources@resources"
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     "SHELL:-s USE_GLFW=3"

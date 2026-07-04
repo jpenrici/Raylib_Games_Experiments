@@ -7,32 +7,40 @@
  *   N restarts after time runs out
  *   ESC exits the game
  *
- * Build-time flags:
- *   -DAUDIO_MUTED  silence all audio (development / CI)
- *   -DONLY_SHAPE   hide image if loaded (development / CI)
+ * Build-time flags (development / CI):
+ *   -DAUDIO_MUTED        silence all audio
+ *   -DONLY_SHAPE         hide image if loaded
+ *   -DRAYLIB_SOURCE_DIR  path to download the Raylib manual for reuse
  *
  * Build and Run:
  * --------------
  *
  * Desktop:
  *
- *  cmake -B build/ [--DAUDIO_MUTED=ON] [-DONLY_SHAPE=ON]
+ *  cmake -B build/ [--DAUDIO_MUTED=ON] [-DONLY_SHAPE=ON] [-DRAYLIB_SOURCE_DIR=/tmp/raylib]
  *  cmake --build build
  *  ./build/game
  *
  * Web - JavaScript/WebAssembly with Emscripten:
  *
- *  emcmake cmake -B build-web
+ *  emcmake cmake -B build-web/ [--DAUDIO_MUTED=ON] [-DONLY_SHAPE=ON] [-DRAYLIB_SOURCE_DIR=/tmp/raylib]
  *  cmake --build build-web
- *  emrun build-web/game.html   (or serve build-web/ with any static server)
+ *  emrun build-web/index.html   (or serve build-web/ with any static server)
  *
- *  cd build-web
- *  zip -r ../spaceship-web.zip index.html index.js index.wasm index.data
+ *  Optional:
+ *
+ *      cd build-web
+ *      zip -r ../spaceship-web.zip index.html index.js index.wasm index.data
+ *
+ *  Download manual:
+ *
+ *      git clone --depth 1 --branch 5.5 https://github.com/raysan5/raylib.git /tmp/raylib
  *
  * Project:
  *
  *  Spaceship
- *  ├── CMakeLists*.txt
+ *  ├── CMakeLists.txt
+ *  ├── shell.html
  *  ├── resources
  *  │   ├── audio
  *  │   │   ├── alert.mp3
