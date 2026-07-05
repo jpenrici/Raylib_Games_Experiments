@@ -40,7 +40,8 @@
  *
  *  Spaceship
  *  ├── CMakeLists.txt
- *  ├── shell.html
+ *  ├── prepare_web.sh    # optional feature
+ *  ├── shell.html        # Emscripten-ready model
  *  ├── resources
  *  │   ├── audio
  *  │   │   ├── alert.mp3
@@ -570,8 +571,16 @@ static void GameUpdate(Game* game)
 {
     UPDATE_MUSIC(game->music);
 
+    // Timer
     game->hud.timer--;
     if (game->hud.timer <= 0) {
+        // If you are a skilled player
+        if (game->hud.collisions <= 0) {
+            game->hud.timer = GAME_DURATION;
+            return;
+        }
+
+        // If time runs out
         game->hud.timer = 0;
         game->state = STATE_GAMEOVER;
         return;
@@ -580,8 +589,10 @@ static void GameUpdate(Game* game)
     // Background scrolls upward — negative speed
     UpdateScroll(&game->background, -2.0f);
 
+    // Other rules
     GamePlay(game);
 
+    // Energy
     game->hud.energy = game->spaceship.energy;
 
     if (game->spaceship.energy == PLAYER_ENERGY_MIN) {
